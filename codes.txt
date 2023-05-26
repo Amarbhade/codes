@@ -1,0 +1,519 @@
+#HIGH PERFORMANCE COMPUTING
+
+#EXPERIMENT 1 (BFS & DFS)
+
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <stack>
+#include <omp.h>
+
+using namespace std;
+
+const int MAX_THREADS = 16; // Maximum number of threads to be used
+
+// Graph class to represent an undirected graph
+class Graph {
+    int V; // number of vertices
+    vector<int>* adj; // adjacency list
+public:
+    Graph(int V);
+    void addEdge(int v, int w);
+    void bfs(int start);
+    void dfs(int start);
+};
+
+// Constructor to initialize a graph with V vertices
+Graph::Graph(int V) {
+    this->V = V;
+    adj = new vector<int>[V];
+}
+
+// Function to add an edge between vertices v and w
+void Graph::addEdge(int v, int w) {
+    adj[v].push_back(w);
+    adj[w].push_back(v);
+}
+
+// Breadth First Search algorithm
+void Graph::bfs(int start) {
+    // Mark all the vertices as not visited
+    bool* visited = new bool[V];
+    for(int i = 0; i < V; i++)
+        visited[i] = false;
+
+    // Create a queue for BFS
+    queue<int> q;
+
+    // Mark the current node as visited and enqueue it
+    visited[start] = true;
+    q.push(start);
+
+    while(!q.empty()) {
+        // Dequeue a vertex from queue and print it
+        int s;
+        #pragma omp critical
+        {
+            s = q.front();
+            q.pop();
+        }
+
+        cout << s << " ";
+
+        // Get all adjacent vertices of the dequeued vertex s.
+        // If an adjacent has not been visited, then mark it visited and enqueue it
+        #pragma omp parallel for num_threads(MAX_THREADS)
+        for(int i = 0; i < adj[s].size(); i++) {
+            int v = adj[s][i];
+            if(!visited[v]) {
+                #pragma omp critical
+                {
+                    visited[v] = true;
+                    q.push(v);
+                }
+            }
+        }
+    }
+
+    delete[] visited;
+}
+// Depth First Search algorithm
+void Graph::dfs(int start) {
+    // Mark all the vertices as not visited
+    bool* visited = new bool[V];
+    for(int i = 0; i < V; i++)
+        visited[i] = false;
+
+    // Create a stack for DFS
+    stack<int> s;
+
+    // Push the current source node
+    s.push(start);
+
+    while(!s.empty()) {
+        // Pop a vertex from stack and print it
+        int v;
+        #pragma omp critical
+        {
+            v = s.top();
+            s.pop();
+        }
+
+        cout << v << " ";
+
+        // Print if not visited and mark as visited
+        if(!visited[v]) {
+            #pragma omp critical
+            {
+                visited[v] = true;
+            }
+        }
+
+        // Get all adjacent vertices of the popped vertex v.
+        // If an adjacent has not been visited, then push it to the stack in reverse order
+        #pragma omp parallel for num_threads(MAX_THREADS)
+        for(int i = adj[v].size() - 1; i >= 0; i--) {
+            int u = adj[v][i];
+            if(!visited[u]) {
+                #pragma omp critical
+                {
+                    s.push(u);
+                }
+            }
+        }
+    }
+
+    delete[] visited;
+}
+
+
+int main() {
+    Graph g(7); // create a graph with 7 vertices
+    g.addEdge(0, 1); // root node
+    g.addEdge(0, 2);
+    g.addEdge(1, 3);
+    g.addEdge(1, 4);
+    g.addEdge(2, 5);
+    g.addEdge(2, 6);
+
+
+    // Call BFS and display complete traversal route
+cout << "BFS Traversal: ";
+g.bfs(0);
+cout << endl;
+
+// Call DFS and display complete traversal route
+cout << "DFS Traversal: ";
+g.dfs(0);
+cout << endl;
+
+return 0;
+}
+
+________________________________________
+
+#EXPERIMENT 2 (BUBBLE SORT AND MERGE SORT)
+
+BUBBLE SORT
+
+#include<iostream>
+#include<stdlib.h>
+#include<omp.h>
+using namespace std;
+
+void bubble(int *, int);
+void swap(int &, int &);
+
+
+void bubble(int *a, int n)
+{
+    for(  int i = 0;  i < n;  i++ )
+     {  	 
+   	 int first = i % 2; 	 
+
+   	 #pragma omp parallel for shared(a,first)
+   	 for(  int j = first;  j < n-1;  j += 2  )
+   	   {  	 
+   		 if(  a[ j ]  >  a[ j+1 ]  )
+   		  {  	 
+     			 swap(  a[ j ],  a[ j+1 ]  );
+   		  }  	 
+   		   }  	 
+     }
+}
+
+
+void swap(int &a, int &b)
+{
+
+    int test;
+    test=a;
+    a=b;
+    b=test;
+
+}
+
+int main()
+{
+
+    int *a,n;
+    cout<<"\n enter total no of elements=>";
+    cin>>n;
+    a=new int[n];
+    cout<<"\n enter elements=>";
+    for(int i=0;i<n;i++)
+    {
+   	 cin>>a[i];
+    }
+    
+    bubble(a,n);
+    
+    cout<<"\n sorted array is=>";
+    for(int i=0;i<n;i++)
+    {
+   	 cout<<a[i]<<endl;
+    }
+
+
+return 0;
+}
+
+MERGE SORT
+
+#include<iostream>
+#include<stdlib.h>
+#include<omp.h>
+using namespace std;
+
+
+void mergesort(int a[],int i,int j);
+void merge(int a[],int i1,int j1,int i2,int j2);
+
+void mergesort(int a[],int i,int j)
+{
+	int mid;
+	if(i<j)
+	{
+    	mid=(i+j)/2;
+   	 
+    	#pragma omp parallel sections
+    	{
+
+        	#pragma omp section
+        	{
+            	mergesort(a,i,mid);   	 
+        	}
+
+        	#pragma omp section
+        	{
+            	mergesort(a,mid+1,j);    
+        	}
+    	}
+
+    	merge(a,i,mid,mid+1,j);    
+	}
+
+}
+ 
+void merge(int a[],int i1,int j1,int i2,int j2)
+{
+	int temp[1000];    
+	int i,j,k;
+	i=i1;    
+	j=i2;    
+	k=0;
+    
+	while(i<=j1 && j<=j2)    
+	{
+    	if(a[i]<a[j])
+    	{
+        	temp[k++]=a[i++];
+    	}
+    	else
+    	{
+        	temp[k++]=a[j++];
+    }    
+	}
+    
+	while(i<=j1)    
+	{
+    	temp[k++]=a[i++];
+	}
+   	 
+	while(j<=j2)    
+	{
+    	temp[k++]=a[j++];
+	}
+   	 
+	for(i=i1,j=0;i<=j2;i++,j++)
+	{
+    	a[i]=temp[j];
+	}    
+}
+
+
+int main()
+{
+	int *a,n,i;
+	cout<<"\n enter total no of elements=>";
+	cin>>n;
+	a= new int[n];
+
+	cout<<"\n enter elements=>";
+	for(i=0;i<n;i++)
+	{
+    	cin>>a[i];
+	}
+   //	 start=.......
+//#pragma omp…..
+	mergesort(a, 0, n-1);
+//          stop…….
+	cout<<"\n sorted array is=>";
+	for(i=0;i<n;i++)
+	{
+    	cout<<"\n"<<a[i];
+	}
+  	// Cout<<Stop-Start
+	return 0;
+
+________________________________________
+#EXPERIMENT 3 (MIN, MAX, SUM, AVG)
+
+#include <iostream>
+//#include <vector>
+#include <omp.h>
+#include <climits>
+using namespace std;
+void min_reduction(int arr[], int n) {
+  int min_value = INT_MAX;
+  #pragma omp parallel for reduction(min: min_value)
+  for (int i = 0; i < n; i++) {
+	if (arr[i] < min_value) {
+  	min_value = arr[i];
+	}
+  }
+  cout << "Minimum value: " << min_value << endl;
+}
+
+void max_reduction(int arr[], int n) {
+  int max_value = INT_MIN;
+  #pragma omp parallel for reduction(max: max_value)
+  for (int i = 0; i < n; i++) {
+	if (arr[i] > max_value) {
+  	max_value = arr[i];
+	}
+  }
+  cout << "Maximum value: " << max_value << endl;
+}
+
+void sum_reduction(int arr[], int n) {
+  int sum = 0;
+   #pragma omp parallel for reduction(+: sum)
+   for (int i = 0; i < n; i++) {
+	sum += arr[i];
+  }
+  cout << "Sum: " << sum << endl;
+}
+
+void average_reduction(int arr[], int n) {
+  int sum = 0;
+  #pragma omp parallel for reduction(+: sum)
+  for (int i = 0; i < n; i++) {
+	sum += arr[i];
+  }
+  cout << "Average: " << (double)sum / (n-1) << endl;
+}
+
+int main() {
+    int *arr,n;
+    cout<<"\n enter total no of elements=>";
+    cin>>n;
+    arr=new int[n];
+    cout<<"\n enter elements=>";
+    for(int i=0;i<n;i++)
+    {
+   	 cin>>arr[i];
+    }
+
+//   int arr[] = {5, 2, 9, 1, 7, 6, 8, 3, 4};
+//   int n = size(arr);
+
+  min_reduction(arr, n);
+  max_reduction(arr, n);
+  sum_reduction(arr, n);
+  average_reduction(arr, n);
+}
+________________________________________
+#EXPERIMENT NO 4 (CUDA)
+
+VECTOR ADDITION
+
+#include <iostream>  
+#include <cuda_runtime.h>
+#include /usr/local/cuda/include/cuda_runtime.h
+
+_global_void addVectors(int* A, int* B, int* C, int n)
+{
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < n)
+	{
+    	C[i] = A[i] + B[i];
+	}
+}
+
+int main()
+{
+	int n = 1000000;  
+	int* A, * B, * C;
+	int size = n * sizeof(int);
+
+	// Allocate memory on the host  
+	cudaMallocHost(&A, size);  
+	cudaMallocHost(&B, size);  
+	cudaMallocHost(&C, size);
+
+	// Initialize the vectors
+	for (int i = 0; i < n; i++)
+	{
+    	A[i] = i;
+    	B[i] = i * 2;
+	}
+	// Allocate memory on the device  
+	int* dev_A, * dev_B, * dev_C;  
+	cudaMalloc(&dev_A, size);  
+	cudaMalloc(&dev_B, size);  
+	cudaMalloc(&dev_C, size);
+
+	// Copy data from host to device
+	cudaMemcpy(dev_A, A, size, cudaMemcpyHostToDevice);  
+	cudaMemcpy(dev_B, B, size, cudaMemcpyHostToDevice);
+
+	// Launch the kernel  
+	int blockSize = 256;
+	int numBlocks = (n + blockSize - 1) / blockSize;
+	// Copy data from device to host
+	cudaMemcpy(C, dev_C, size, cudaMemcpyDeviceToHost);
+
+	// Print the results
+	for (int i = 0; i < 10; i++)
+	{
+    	cout << C[i] << " ";
+	}
+	cout << endl;
+
+	// Free memory  
+	cudaFree(dev_A);  
+	cudaFree(dev_B);  
+	cudaFree(dev_C);  
+	cudaFreeHost(A);  
+	cudaFreeHost(B);  
+	cudaFreeHost(C);
+
+	return 0;
+}
+
+MATRIX MULTIPLICATION
+
+#include <cuda_runtime.h>
+#include <iostream>
+__global__ void matmul(int* A, int* B, int* C, int N) {
+int Row = blockIdx.y*blockDim.y+threadIdx.y;
+int Col = blockIdx.x*blockDim.x+threadIdx.x;
+if (Row < N && Col < N) {
+int Pvalue = 0;
+for (int k = 0; k < N; k++) {
+Pvalue += A[Row*N+k] * B[k*N+Col];
+}
+C[Row*N+Col] = Pvalue;
+}
+}
+int main() {
+int N = 512;
+int size = N * N * sizeof(int);
+int* A, * B, * C;
+int* dev_A, * dev_B, * dev_C;
+cudaMallocHost(&A, size);
+cudaMallocHost(&B, size);
+cudaMallocHost(&C, size);
+cudaMalloc(&dev_A, size);
+cudaMalloc(&dev_B, size);
+cudaMalloc(&dev_C, size);
+// Initialize matrices A and B
+for (int i = 0; i < N; i++) {
+for (int j = 0; j < N; j++) {
+A[i*N+j] = i*N+j;
+B[i*N+j] = j*N+i;
+}
+}
+cudaMemcpy(dev_A, A, size,
+cudaMemcpyHostToDevice);
+cudaMemcpy(dev_B, B, size,
+cudaMemcpyHostToDevice);
+dim3 dimBlock(16, 16);
+dim3 dimGrid(N/dimBlock.x, N/dimBlock.y);
+matmul<<<dimGrid, dimBlock>>>(dev_A, dev_B,
+dev_C, N);
+cudaMemcpy(C, dev_C
+// Print the result
+for (int i = 0; i < 10; i++) {
+for (int j = 0; j < 10; j++) {
+std::cout << C[i*N+j] << " ";
+}
+std::cout << std::endl;
+}
+// Free memory
+cudaFree(dev_A);
+cudaFree(dev_B);
+cudaFree(dev_C);
+cudaFreeHost(A);
+cudaFreeHost(B);
+cudaFreeHost(C);
+return 0;
+
+________________________________________
+
+#DEEP LEARNING
+
+#EXPERIMENT 1 (BOSTON HOUSING)
+
+1.	
